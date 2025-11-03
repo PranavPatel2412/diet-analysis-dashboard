@@ -1,358 +1,251 @@
-# Deployment Documentation
+# API Documentation
 
-## Project: Diet Analysis Cloud Dashboard
+## Diet Analysis Azure Function API
 
----
-
-## 📋 Table of Contents
-1. [Azure Resources](#azure-resources)
-2. [Backend Deployment](#backend-deployment)
-3. [Frontend Deployment](#frontend-deployment)
-4. [Configuration](#configuration)
-5. [Testing](#testing)
-6. [Troubleshooting](#troubleshooting)
+Base URL: `https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api`
 
 ---
 
-## 🏗️ Azure Resources
+## Endpoints
 
-### Resource Group
-- **Name:** `diet-analysis-rg`
-- **Region:** Canada Central
-- **Purpose:** Container for all project resources
-- **Created:** [Date]
+### 1. Analyze Nutrition Data
 
-### Storage Account
-- **Name:** `dietstorageacc[unique-id]`
-- **Region:** Canada Central
-- **Type:** StorageV2
-- **Redundancy:** LRS (Locally Redundant Storage)
-- **Performance:** Standard
-- **Container Name:** `diets-data`
-- **Dataset:** `diets_dataset.csv`
+**Endpoint:** `/analyzenutrition`
 
-**Connection String:**
-```
-DefaultEndpointsProtocol=https;AccountName=dietstorageacc...;AccountKey=...;EndpointSuffix=core.windows.net
-```
-*(Store securely - do not commit to Git)*
+**Method:** `GET`, `POST`
 
-### Function App
-- **Name:** `diet-analysis-func-[name]`
-- **Runtime:** Python 3.10
-- **Plan:** Consumption (Serverless)
-- **Region:** Canada Central
-- **OS:** Linux
+**Description:** Retrieves and analyzes nutritional data from Azure Blob Storage with optional diet type filtering.
 
-**Function URL:**
-```
-https://diet-analysis-func-[name].azurewebsites.net/api/analyzenutrition
-```
+#### Request Parameters
 
-### Static Web App
-- **Name:** `diet-dashboard`
-- **Region:** Central US (default)
-- **Plan:** Free
-- **Repository:** Connected to GitHub
+| Parameter | Type | Location | Required | Description |
+|-----------|------|----------|----------|-------------|
+| `dietType` | string | Query/Body | No | Filter by diet type. Options: `all`, `vegan`, `keto`, `paleo`, `mediterranean`, `dash` |
 
-**Dashboard URL:**
-```
-https://diet-dashboard.azurestaticapps.net
-```
+#### Example Requests
 
----
-
-## 🚀 Backend Deployment
-
-### Prerequisites
+**GET Request:**
 ```bash
-# Install Azure CLI
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-
-# Install Azure Functions Core Tools
-npm install -g azure-functions-core-tools@4
-
-# Install Python 3.10
-python3 --version
+curl "https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api/analyzenutrition?dietType=vegan"
 ```
 
-### Step 1: Login to Azure
+**POST Request:**
 ```bash
-az login
-az account set --subscription "YOUR-SUBSCRIPTION-ID"
+curl -X POST "https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api/analyzenutrition" \
+  -H "Content-Type: application/json" \
+  -d '{"dietType": "vegan"}'
 ```
 
-### Step 2: Create Resources
-```bash
-# Create resource group
-az group create --name diet-analysis-rg --location canadacentral
+#### Response Format
 
-# Create storage account
-az storage account create \
-  --name dietstorageaccYOURID \
-  --resource-group diet-analysis-rg \
-  --location canadacentral \
-  --sku Standard_LRS
-
-# Create function app
-az functionapp create \
-  --resource-group diet-analysis-rg \
-  --consumption-plan-location canadacentral \
-  --runtime python \
-  --runtime-version 3.10 \
-  --functions-version 4 \
-  --name diet-analysis-func-YOURNAME \
-  --storage-account dietstorageaccYOURID \
-  --os-type Linux
-```
-
-### Step 3: Upload Dataset
-```bash
-# Get storage account key
-ACCOUNT_KEY=$(az storage account keys list \
-  --account-name dietstorageaccYOURID \
-  --resource-group diet-analysis-rg \
-  --query "[0].value" -o tsv)
-
-# Create container
-az storage container create \
-  --name diets-data \
-  --account-name dietstorageaccYOURID \
-  --account-key $ACCOUNT_KEY \
-  --public-access blob
-
-# Upload CSV
-az storage blob upload \
-  --account-name dietstorageaccYOURID \
-  --container-name diets-data \
-  --name diets_dataset.csv \
-  --file path/to/diets_dataset.csv \
-  --account-key $ACCOUNT_KEY
-```
-
-### Step 4: Deploy Function
-```bash
-cd backend
-
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Test locally
-func start
-
-# Deploy to Azure
-func azure functionapp publish diet-analysis-func-YOURNAME
-```
-
-### Step 5: Configure Function App
-```bash
-# Get connection string
-CONNECTION_STRING=$(az storage account show-connection-string \
-  --name dietstorageaccYOURID \
-  --resource-group diet-analysis-rg \
-  --output tsv)
-
-# Set application settings
-az functionapp config appsettings set \
-  --name diet-analysis-func-YOURNAME \
-  --resource-group diet-analysis-rg \
-  --settings "AzureWebJobsStorage=$CONNECTION_STRING"
-
-# Enable CORS
-az functionapp cors add \
-  --name diet-analysis-func-YOURNAME \
-  --resource-group diet-analysis-rg \
-  --allowed-origins "*"
-```
-
----
-
-## 🌐 Frontend Deployment
-
-### Option 1: Azure Static Web Apps (Recommended)
-
-#### Via Azure Portal
-1. Go to Azure Portal → Create Resource → Static Web App
-2. **Basics:**
-   - Resource group: `diet-analysis-rg`
-   - Name: `diet-dashboard`
-   - Plan type: Free
-   - Region: Central US
-3. **Deployment:**
-   - Source: GitHub
-   - Organization: [Your GitHub username]
-   - Repository: `diet-analysis-dashboard`
-   - Branch: `main`
-   - Build Presets: Custom
-   - App location: `/frontend`
-   - Output location: `/frontend`
-4. Click "Review + Create"
-
-#### Via GitHub Actions (Auto-configured)
-After connecting to GitHub, Azure creates a workflow file:
-
-`.github/workflows/azure-static-web-apps-[name].yml`
-```yaml
-name: Azure Static Web Apps CI/CD
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
-
-jobs:
-  build_and_deploy_job:
-    runs-on: ubuntu-latest
-    name: Build and Deploy Job
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Build And Deploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "/frontend"
-          output_location: ""
-```
-
-### Option 2: Azure App Service
-```bash
-# Create App Service plan
-az appservice plan create \
-  --name diet-dashboard-plan \
-  --resource-group diet-analysis-rg \
-  --sku F1 \
-  --is-linux
-
-# Create Web App
-az webapp create \
-  --resource-group diet-analysis-rg \
-  --plan diet-dashboard-plan \
-  --name diet-dashboard-app \
-  --runtime "NODE|18-lts"
-
-# Deploy from GitHub
-az webapp deployment source config \
-  --name diet-dashboard-app \
-  --resource-group diet-analysis-rg \
-  --repo-url https://github.com/YOUR-USERNAME/diet-analysis-dashboard \
-  --branch main \
-  --manual-integration
-```
-
----
-
-## ⚙️ Configuration
-
-### Update Frontend API Endpoint
-
-Edit `frontend/js/api.js`:
-```javascript
-const API_BASE_URL = 'https://diet-analysis-func-YOURNAME.azurewebsites.net/api';
-```
-
-### Environment Variables
-
-**Backend (Function App):**
-- `AzureWebJobsStorage` - Storage connection string
-- `BLOB_CONNECTION_STRING` - Same as AzureWebJobsStorage
-- `CONTAINER_NAME` - `diets-data`
-- `BLOB_NAME` - `diets_dataset.csv`
-
-**Frontend (Static Web App):**
-- `API_BASE_URL` - Function app URL
-
----
-
-## 🧪 Testing
-
-### Test Azure Function
-```bash
-# Health check
-curl https://diet-analysis-func-YOURNAME.azurewebsites.net/api/health
-
-# Get all data
-curl https://diet-analysis-func-YOURNAME.azurewebsites.net/api/analyzenutrition
-
-# Filter by diet type
-curl "https://diet-analysis-func-YOURNAME.azurewebsites.net/api/analyzenutrition?dietType=vegan"
-```
-
-### Test Frontend
-1. Open dashboard URL in browser
-2. Check browser console for errors (F12)
-3. Verify all charts load
-4. Test filter dropdown
-5. Click refresh button
-6. Test on mobile device
-
-### Postman Collection
-Import this collection to test API:
+**Success Response (200 OK):**
 ```json
 {
-  "info": {
-    "name": "Diet Analysis API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  "success": true,
+  "recordCount": 150,
+  "executionTime": "125ms",
+  "filter": "vegan",
+  "macronutrients": {
+    "dietTypes": ["Vegan", "Keto", "Paleo"],
+    "protein": [45.2, 89.5, 67.3],
+    "carbs": [180.5, 25.3, 95.2],
+    "fat": [30.1, 165.2, 78.4]
   },
-  "item": [
+  "distribution": {
+    "dietTypes": ["Vegan", "Keto", "Paleo", "Mediterranean"],
+    "recipeCounts": [45, 38, 32, 35]
+  },
+  "scatterData": [
     {
-      "name": "Get All Nutritional Data",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "https://diet-analysis-func-YOURNAME.azurewebsites.net/api/analyzenutrition",
-          "protocol": "https",
-          "host": [
-            "diet-analysis-func-YOURNAME",
-            "azurewebsites",
-            "net"
-          ],
-          "path": [
-            "api",
-            "analyzenutrition"
-          ]
-        }
-      }
+      "x": 45.2,
+      "y": 180.5,
+      "label": "Vegan Buddha Bowl"
     },
     {
-      "name": "Filter by Diet Type",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "https://diet-analysis-func-YOURNAME.azurewebsites.net/api/analyzenutrition?dietType=vegan",
-          "protocol": "https",
-          "host": [
-            "diet-analysis-func-YOURNAME",
-            "azurewebsites",
-            "net"
-          ],
-          "path": [
-            "api",
-            "analyzenutrition"
-          ],
-          "query": [
-            {
-              "key": "dietType",
-              "value": "vegan"
-            }
-          ]
-        }
-      }
+      "x": 89.5,
+      "y": 25.3,
+      "label": "Keto Steak"
     }
-  ]
+  ],
+  "correlations": {
+    "protein_carbs": -0.65
+  },
+  "availableColumns": ["Recipe_name", "Diet_type", "Protein(g)", "Carbs(g)", "Fat(g)"]
+}
+```
+
+**Error Response (404 Not Found):**
+```json
+{
+  "success": false,
+  "error": "No data found for diet type: invalid_type"
+}
+```
+
+**Error Response (500 Internal Server Error):**
+```json
+{
+  "success": false,
+  "error": "Detailed error message",
+  "message": "Failed to process nutritional data"
 }
 ```
 
 ---
+
+### 2. Health Check
+
+**Endpoint:** `/health`
+
+**Method:** `GET`
+
+**Description:** Checks if the API is running and healthy.
+
+#### Example Request
+```bash
+curl "https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api/health"
+```
+
+#### Response Format
+
+**Success Response (200 OK):**
+```json
+{
+  "status": "healthy",
+  "message": "Diet Analysis API is running",
+  "version": "1.0.0"
+}
+```
+
+---
+
+## Response Fields
+
+### Macronutrients Object
+| Field | Type | Description |
+|-------|------|-------------|
+| `dietTypes` | array | List of diet type names |
+| `protein` | array | Average protein content (g) per diet type |
+| `carbs` | array | Average carbohydrate content (g) per diet type |
+| `fat` | array | Average fat content (g) per diet type |
+
+### Distribution Object
+| Field | Type | Description |
+|-------|------|-------------|
+| `dietTypes` | array | List of diet type names |
+| `recipeCounts` | array | Number of recipes per diet type |
+
+### Scatter Data Array
+Each object contains:
+| Field | Type | Description |
+|-------|------|-------------|
+| `x` | number | Protein content (g) |
+| `y` | number | Carbohydrate content (g) |
+| `label` | string | Recipe name |
+
+### Correlations Object
+| Field | Type | Description |
+|-------|------|-------------|
+| `protein_carbs` | number | Correlation coefficient between protein and carbs (-1 to 1) |
+
+---
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 404 | No data found for specified filter |
+| 500 | Internal server error |
+
+---
+
+## CORS Configuration
+
+The API allows cross-origin requests from:
+- All origins (`*`) for development
+- Specific frontend domains in production
+
+**Headers:**
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+```
+
+---
+
+## Rate Limiting
+
+- **Free Tier:** 1,000,000 requests per month
+- **Timeout:** 5 minutes per request
+
+---
+
+## Authentication
+
+Currently using **Function Key** authentication level.
+
+To make authenticated requests:
+1. Get function key from Azure Portal
+2. Add to request URL: `?code=YOUR_FUNCTION_KEY`
+3. Or add header: `x-functions-key: YOUR_FUNCTION_KEY`
+
+---
+
+## Sample Integration Code
+
+### JavaScript (Fetch API)
+```javascript
+async function getAnalysis(dietType = 'all') {
+    const response = await fetch(
+        `https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api/analyzenutrition?dietType=${dietType}`,
+        {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+    return await response.json();
+}
+```
+
+### Python
+```python
+import requests
+
+def get_analysis(diet_type='all'):
+    url = f'https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api/analyzenutrition'
+    params = {'dietType': diet_type}
+    response = requests.get(url, params=params)
+    return response.json()
+```
+
+### cURL
+```bash
+curl -X GET \
+  "https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api/analyzenutrition?dietType=vegan" \
+  -H "Content-Type: application/json"
+```
+
+---
+
+## Data Source
+
+- **Storage:** Azure Blob Storage
+- **Container:** `diets-data`
+- **File:** `diets_dataset.csv`
+- **Format:** CSV with headers
+
+---
+
+## Monitoring
+
+View logs and metrics:
+- Azure Portal → Function App → Monitor
+- Application Insights for detailed analytics
+
+---
+
+**Last Updated:** November 2024
