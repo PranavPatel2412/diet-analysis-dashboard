@@ -143,7 +143,6 @@ let resizeTimeout;
 window.addEventListener('resize', function() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(function() {
-        // Charts automatically resize due to responsive: true option
         console.log('Window resized, charts adjusted');
     }, 250);
 });
@@ -166,3 +165,10 @@ window.addEventListener('beforeunload', function() {
     console.log('Dashboard unloading...');
     destroyAllCharts();
 });
+```
+
+---
+
+### **📄 frontend/assets/.gitkeep**
+```
+# This file keeps the assets folder in git
