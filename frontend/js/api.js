@@ -1,7 +1,6 @@
 // API Configuration and Functions
-// Replace with your actual Azure Function URL
+// IMPORTANT: Replace with your actual Azure Function URL after deployment
 const API_BASE_URL = 'https://YOUR-FUNCTION-APP-NAME.azurewebsites.net/api';
-const API_KEY = 'YOUR_FUNCTION_KEY_HERE'; // Optional if using function key
 
 /**
  * Fetch nutritional insights from Azure Function
@@ -19,9 +18,7 @@ async function fetchNutritionalInsights(dietFilter = 'all') {
         const response = await fetch(url, {
             method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
-                // Uncomment if using function key authentication
-                // 'x-functions-key': API_KEY
+                'Content-Type': 'application/json'
             }
         });
         
