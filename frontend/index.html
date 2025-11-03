@@ -1,1 +1,193 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutritional Insights Dashboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-50">
+    
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-6">
+            <h1 class="text-4xl font-bold">🍽️ Nutritional Insights Dashboard</h1>
+            <p class="text-blue-100 mt-2">Powered by Azure Cloud Services</p>
+        </div>
+    </header>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-8 flex flex-col items-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+            <p class="mt-4 text-gray-700 font-semibold">Loading data...</p>
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    <div id="errorAlert" class="hidden fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg z-40 max-w-md">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-semibold">Error</p>
+                <p id="errorMessage" class="text-sm mt-1"></p>
+            </div>
+            <button onclick="closeError()" class="ml-auto">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        
+        <!-- Metadata Section -->
+        <section class="mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Function Metadata</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600">Execution Time</p>
+                        <p id="execTime" class="text-2xl font-bold text-blue-600">--</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600">Records Processed</p>
+                        <p id="recordCount" class="text-2xl font-bold text-green-600">--</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600">Active Filter</p>
+                        <p id="activeFilter" class="text-2xl font-bold text-purple-600">All</p>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600">Last Updated</p>
+                        <p id="lastUpdate" class="text-sm font-semibold text-orange-600">--</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters Section -->
+        <section class="mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">🔍 Filters</h2>
+                <div class="flex flex-wrap gap-4">
+                    <select id="dietFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="all">All Diet Types</option>
+                        <option value="vegan">Vegan</option>
+                        <option value="keto">Keto</option>
+                        <option value="paleo">Paleo</option>
+                        <option value="mediterranean">Mediterranean</option>
+                        <option value="dash">DASH</option>
+                    </select>
+                    
+                    <button id="refreshBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh Data
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Visualizations Section -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">📈 Data Visualizations</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Bar Chart -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Average Macronutrients by Diet Type</h3>
+                    <p class="text-sm text-gray-600 mb-4">Comparison of protein, carbs, and fat content</p>
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Scatter Plot -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Protein vs Carbs Correlation</h3>
+                    <p class="text-sm text-gray-600 mb-4">Nutrient relationship analysis</p>
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="scatterPlot"></canvas>
+                    </div>
+                </div>
+
+                <!-- Pie Chart -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Recipe Distribution by Diet Type</h3>
+                    <p class="text-sm text-gray-600 mb-4">Percentage breakdown of recipes</p>
+                    <div class="relative" style="height: 300px;">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Additional Info Card -->
+                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-md p-6 text-white">
+                    <h3 class="text-xl font-semibold mb-4">💡 Insights</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Real-time data fetched from Azure Blob Storage</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Serverless Azure Functions for data processing</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Interactive charts with Chart.js library</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Responsive design for all devices</span>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-12">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-sm">&copy; 2024 Nutritional Insights Dashboard. All Rights Reserved.</p>
+            <p class="text-xs text-gray-400 mt-2">Cloud Computing Phase 2 Project</p>
+            <div class="mt-4 flex justify-center space-x-4">
+                <span class="text-xs">Team: Pranav, Krunal, Aviral</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
