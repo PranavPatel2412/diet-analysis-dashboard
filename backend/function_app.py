@@ -176,8 +176,12 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(
         json.dumps({
             "status": "healthy",
-            "message": "Diet Analysis API is running"
+            "message": "Diet Analysis API is running",
+            "version": "1.0.0"
         }),
         mimetype="application/json",
-        status_code=200
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*"
+        }
     )
