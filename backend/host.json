@@ -28,3 +28,5 @@ __queuestorage__
 local.settings.json
 test
 .venv
+.python_packages
+.env
